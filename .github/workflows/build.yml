@@ -1,4 +1,4 @@
-name: Build do Plugin
+name: Build do Plugin 1.21
 on:
   push:
     branches: [ "main" ]
@@ -7,15 +7,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Setup Java 17
+      - name: Setup Java 21
         uses: actions/setup-java@v4
         with:
-          java-version: '17'
+          java-version: '21'
           distribution: 'temurin'
       - name: Compilar com Maven
         run: mvn clean package
       - name: Baixar o Plugin Pronto
         uses: actions/upload-artifact@v4
         with:
-          name: PlayTitle-Jar
+          name: PlayTitle-1.21-Jar
           path: target/*.jar

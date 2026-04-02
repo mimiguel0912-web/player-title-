@@ -1,9 +1,0 @@
-name: PlayTitle
-version: 1.1
-main: me.miguel.playtitle.PlayTitle
-api-version: '1.21'
-commands:
-  playtitle:
-    description: Define um título para um jogador.
-    usage: /playtitle <jogador> <titulo>
-    

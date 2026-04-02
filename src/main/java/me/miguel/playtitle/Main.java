@@ -1,4 +1,4 @@
-package me.miguel.playtitle; // Mudei para o seu nome
+package me.miguel.playtitle; // bruh vou me mata 
 
 import org.bukkit.*;
 import org.bukkit.attribute.Attribute;

@@ -35,7 +35,7 @@
         <dependency>
             <groupId>com.github.NEZNAMY</groupId>
             <artifactId>TAB-API</artifactId>
-            <version>4.1.4</version>
+            <version>master-SNAPSHOT</version>
             <scope>provided</scope>
         </dependency>
     </dependencies>

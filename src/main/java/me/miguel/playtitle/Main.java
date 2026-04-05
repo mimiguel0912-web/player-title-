@@ -26,27 +26,25 @@ public class Main extends JavaPlugin implements CommandExecutor, Listener {
     public void onEnable() {
         saveDefaultConfig();
         loadData();
-        getServer().getPluginManager().registerEvents(this, this); // Registra o evento de entrada
+        getServer().getPluginManager().registerEvents(this, this);
         getCommand("title").setExecutor(this);
         getCommand("untitle").setExecutor(this);
-        getLogger().info("PlayTitle carregado com sistema de persistência!");
+        getLogger().info("PlayTitle ON - Integrado com TAB e Salvamento!");
     }
 
-    // --- EVENTO QUE RESOLVE O SEU PROBLEMA ---
     @EventHandler
     public void onJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
         UUID uuid = player.getUniqueId();
 
-        // Se o jogador tem um título salvo no arquivo ou na memória
         if (listaDeTitulos.containsKey(uuid)) {
             String titulo = listaDeTitulos.get(uuid);
             
-            // Aplica no Chat e TAB interno
+            // Aplica no Chat e Lista do TAB
             player.setDisplayName(titulo + "§f§l" + player.getName());
             player.setPlayerListName(titulo + "§f§l" + player.getName());
 
-            // Agenda a aplicação no TAB para 2 segundos após o join (evita bugs de carregamento)
+            // Espera o TAB carregar o player para aplicar na cabeça
             Bukkit.getScheduler().runTaskLater(this, () -> {
                 updateTabPrefix(player, titulo);
             }, 40L); 
@@ -88,7 +86,7 @@ public class Main extends JavaPlugin implements CommandExecutor, Listener {
             try {
                 cor = ChatColor.valueOf(corNome);
             } catch (Exception e) {
-                sender.sendMessage("§cCor inválida!");
+                sender.sendMessage("§cCor inválida! Use nomes em inglês.");
                 return true;
             }
 
@@ -105,26 +103,30 @@ public class Main extends JavaPlugin implements CommandExecutor, Listener {
             
             target.setDisplayName(tituloFormatado + "§f§l" + target.getName());
             target.setPlayerListName(tituloFormatado + "§f§l" + target.getName());
+            
             updateTabPrefix(target, tituloFormatado);
 
-            // SALVA DEFINITIVAMENTE
             listaDeTitulos.put(target.getUniqueId(), tituloFormatado);
             getConfig().set("titulos-salvos." + target.getUniqueId(), tituloFormatado);
             saveConfig();
 
             target.sendTitle(cor + "§l" + texto, "§fTítulo Ativado!", 10, 40, 10);
-            sender.sendMessage("§aTítulo aplicado e salvo!");
+            sender.sendMessage("§aTítulo salvo e aplicado!");
             return true;
         }
         return true;
     }
 
     private void updateTabPrefix(Player player, String prefix) {
-        if (Bukkit.getPluginManager().isPluginEnabled("TAB")) {
-            TabPlayer tabPlayer = TabAPI.getInstance().getPlayer(player.getUniqueId());
-            if (tabPlayer != null) {
-                TabAPI.getInstance().getGroupManager().setPrefix(tabPlayer, prefix);
+        try {
+            if (Bukkit.getPluginManager().isPluginEnabled("TAB")) {
+                TabPlayer tabPlayer = TabAPI.getInstance().getPlayer(player.getUniqueId());
+                if (tabPlayer != null) {
+                    TabAPI.getInstance().getGroupManager().setPrefix(tabPlayer, prefix);
+                }
             }
+        } catch (Exception e) {
+            getLogger().warning("Erro ao atualizar prefixo no TAB: " + e.getMessage());
         }
     }
 
@@ -134,12 +136,7 @@ public class Main extends JavaPlugin implements CommandExecutor, Listener {
         p.setDisplayName(p.getName());
         p.setPlayerListName(p.getName());
         
-        if (Bukkit.getPluginManager().isPluginEnabled("TAB")) {
-            TabPlayer tabPlayer = TabAPI.getInstance().getPlayer(p.getUniqueId());
-            if (tabPlayer != null) {
-                TabAPI.getInstance().getGroupManager().setPrefix(tabPlayer, "");
-            }
-        }
+        updateTabPrefix(p, "");
         
         getConfig().set("titulos-salvos." + p.getUniqueId(), null);
         saveConfig();
@@ -159,9 +156,13 @@ public class Main extends JavaPlugin implements CommandExecutor, Listener {
     private void loadData() {
         if (getConfig().getConfigurationSection("titulos-salvos") == null) return;
         for (String key : getConfig().getConfigurationSection("titulos-salvos").getKeys(false)) {
-            UUID uuid = UUID.fromString(key);
-            String tag = getConfig().getString("titulos-salvos." + key);
-            listaDeTitulos.put(uuid, tag);
+            try {
+                UUID uuid = UUID.fromString(key);
+                String tag = getConfig().getString("titulos-salvos." + key);
+                listaDeTitulos.put(uuid, tag);
+            } catch (Exception e) {
+                // Pula se o UUID for inválido
+            }
         }
     }
 }

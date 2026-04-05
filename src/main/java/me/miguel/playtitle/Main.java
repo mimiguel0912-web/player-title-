@@ -9,13 +9,16 @@ import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
-public class Main extends JavaPlugin implements CommandExecutor {
+public class Main extends JavaPlugin implements CommandExecutor, Listener {
 
     private final Map<UUID, String> listaDeTitulos = new HashMap<>();
 
@@ -23,14 +26,35 @@ public class Main extends JavaPlugin implements CommandExecutor {
     public void onEnable() {
         saveDefaultConfig();
         loadData();
+        getServer().getPluginManager().registerEvents(this, this); // Registra o evento de entrada
         getCommand("title").setExecutor(this);
         getCommand("untitle").setExecutor(this);
-        getLogger().info("PlayTitle carregado com suporte ao TAB!");
+        getLogger().info("PlayTitle carregado com sistema de persistência!");
+    }
+
+    // --- EVENTO QUE RESOLVE O SEU PROBLEMA ---
+    @EventHandler
+    public void onJoin(PlayerJoinEvent event) {
+        Player player = event.getPlayer();
+        UUID uuid = player.getUniqueId();
+
+        // Se o jogador tem um título salvo no arquivo ou na memória
+        if (listaDeTitulos.containsKey(uuid)) {
+            String titulo = listaDeTitulos.get(uuid);
+            
+            // Aplica no Chat e TAB interno
+            player.setDisplayName(titulo + "§f§l" + player.getName());
+            player.setPlayerListName(titulo + "§f§l" + player.getName());
+
+            // Agenda a aplicação no TAB para 2 segundos após o join (evita bugs de carregamento)
+            Bukkit.getScheduler().runTaskLater(this, () -> {
+                updateTabPrefix(player, titulo);
+            }, 40L); 
+        }
     }
 
     @Override
     public boolean onCommand(CommandSender sender, Command cmd, String label, String[] args) {
-
         if (cmd.getName().equalsIgnoreCase("untitle")) {
             if (args.length < 1) {
                 sender.sendMessage("§eUse: /untitle <jogador>");
@@ -64,7 +88,7 @@ public class Main extends JavaPlugin implements CommandExecutor {
             try {
                 cor = ChatColor.valueOf(corNome);
             } catch (Exception e) {
-                sender.sendMessage("§cCor inválida! Use GOLD, RED, AQUA, etc.");
+                sender.sendMessage("§cCor inválida!");
                 return true;
             }
 
@@ -79,19 +103,17 @@ public class Main extends JavaPlugin implements CommandExecutor {
 
             String tituloFormatado = "§7[" + prefixo + cor + "§l" + texto + "§7] ";
             
-            // 1. Aplica no Chat e no TAB do Minecraft
             target.setDisplayName(tituloFormatado + "§f§l" + target.getName());
             target.setPlayerListName(tituloFormatado + "§f§l" + target.getName());
-
-            // 2. COMANDO MÁGICO: Envia para a API do TAB mudar a cabeça
             updateTabPrefix(target, tituloFormatado);
 
+            // SALVA DEFINITIVAMENTE
             listaDeTitulos.put(target.getUniqueId(), tituloFormatado);
             getConfig().set("titulos-salvos." + target.getUniqueId(), tituloFormatado);
             saveConfig();
 
             target.sendTitle(cor + "§l" + texto, "§fTítulo Ativado!", 10, 40, 10);
-            sender.sendMessage("§aTítulo aplicado e sincronizado com o TAB!");
+            sender.sendMessage("§aTítulo aplicado e salvo!");
             return true;
         }
         return true;
@@ -101,7 +123,6 @@ public class Main extends JavaPlugin implements CommandExecutor {
         if (Bukkit.getPluginManager().isPluginEnabled("TAB")) {
             TabPlayer tabPlayer = TabAPI.getInstance().getPlayer(player.getUniqueId());
             if (tabPlayer != null) {
-                // Define o prefixo diretamente na cabeça e no TAB através do plugin TAB
                 TabAPI.getInstance().getGroupManager().setPrefix(tabPlayer, prefix);
             }
         }

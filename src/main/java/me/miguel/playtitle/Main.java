@@ -34,7 +34,7 @@ public class Main extends JavaPlugin implements CommandExecutor {
                 sender.sendMessage("§c[!] Nenhum título ativo no momento.");
                 return true;
             }
-            sender.sendMessage("§b§l--- TiTULOS DiSPONiVEiS ---");
+            sender.sendMessage("§b§l--- TÍTULOS ATIVOS ---");
             for (Map.Entry<UUID, String> entry : listaDeTitulos.entrySet()) {
                 String nome = Bukkit.getOfflinePlayer(entry.getKey()).getName();
                 sender.sendMessage("§f• " + nome + ": " + ChatColor.translateAlternateColorCodes('&', entry.getValue()));
@@ -60,7 +60,7 @@ public class Main extends JavaPlugin implements CommandExecutor {
             return true;
         }
 
-        // COMANDO: /title <op/god/comum> <jogador> <texto> <cor>
+        // COMANDO: /title <comum/op/god> <jogador> <texto> <cor>
         if (cmd.getName().equalsIgnoreCase("title")) {
             if (args.length < 4) {
                 sender.sendMessage("§eUse: /title <comum/op/god> <jogador> <texto> <cor>");
@@ -85,22 +85,27 @@ public class Main extends JavaPlugin implements CommandExecutor {
                 return true;
             }
 
-            String tag = "";
+            String prefixo = "";
             if (tipo.equals("god")) {
-                tag = "§b§lGOD: ";
-                applyAttributes(target, 40.0, 2.5); // +2x Vida | +1.5x Dano
+                prefixo = "§b§lGOD: ";
+                applyAttributes(target, 40.0, 2.5);
             } else if (tipo.equals("op")) {
-                tag = "§6§lOP: ";
-                applyAttributes(target, 38.0, 1.5); // +0.9x Vida | +0.5x Dano
+                prefixo = "§6§lOP: ";
+                applyAttributes(target, 38.0, 1.5);
             }
 
-            String tituloFinal = tag + cor + "§l" + texto;
-            listaDeTitulos.put(target.getUniqueId(), tituloFinal);
-            getConfig().set("titulos-salvos." + target.getUniqueId(), tituloFinal);
+            // O Título final que será salvo e exibido
+            String tituloPrincipal = prefixo + cor + "§l" + texto;
+            String subtituloNick = "§f" + target.getName(); // Nick em branco embaixo
+
+            listaDeTitulos.put(target.getUniqueId(), tituloPrincipal);
+            getConfig().set("titulos-salvos." + target.getUniqueId(), tituloPrincipal);
             saveConfig();
 
-            target.sendTitle(tituloFinal, "§fTítulo Ativado!", 10, 70, 20);
-            sender.sendMessage("§aTítulo " + tipo.toUpperCase() + " enviado para " + target.getName());
+            // EXIBIÇÃO NA TELA: Título em cima, Nick embaixo
+            target.sendTitle(tituloPrincipal, subtituloNick, 10, 70, 20);
+            
+            sender.sendMessage("§aTítulo enviado para " + target.getName());
             return true;
         }
         return true;
@@ -114,7 +119,7 @@ public class Main extends JavaPlugin implements CommandExecutor {
 
     private void removeAttributes(Player p) {
         p.getAttribute(Attribute.GENERIC_MAX_HEALTH).setBaseValue(20.0);
-        p.getAttribute(Attribute.GENERIC_ATTACK_DAMAGE).setBaseValue(1.0); // Dano padrão da mão
+        p.getAttribute(Attribute.GENERIC_ATTACK_DAMAGE).setBaseValue(1.0);
     }
 
     private void loadData() {

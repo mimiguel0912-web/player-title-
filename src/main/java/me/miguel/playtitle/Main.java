@@ -28,21 +28,19 @@ public class Main extends JavaPlugin implements CommandExecutor {
     @Override
     public boolean onCommand(CommandSender sender, Command cmd, String label, String[] args) {
 
-        // COMANDO: /titulos
         if (cmd.getName().equalsIgnoreCase("titulos")) {
             if (listaDeTitulos.isEmpty()) {
-                sender.sendMessage("§c[!] Nenhum título ativo no momento.");
+                sender.sendMessage("§c[!] Nenhum título ativo.");
                 return true;
             }
             sender.sendMessage("§b§l--- TÍTULOS ATIVOS ---");
             for (Map.Entry<UUID, String> entry : listaDeTitulos.entrySet()) {
                 String nome = Bukkit.getOfflinePlayer(entry.getKey()).getName();
-                sender.sendMessage("§f• " + nome + ": " + ChatColor.translateAlternateColorCodes('&', entry.getValue()));
+                sender.sendMessage("§e" + nome + " §7- " + ChatColor.translateAlternateColorCodes('&', entry.getValue()));
             }
             return true;
         }
 
-        // COMANDO: /untitle <jogador>
         if (cmd.getName().equalsIgnoreCase("untitle")) {
             if (args.length < 1) {
                 sender.sendMessage("§eUse: /untitle <jogador>");
@@ -52,15 +50,18 @@ public class Main extends JavaPlugin implements CommandExecutor {
             if (target != null) {
                 listaDeTitulos.remove(target.getUniqueId());
                 removeAttributes(target);
+                
+                // Reseta o nome no Chat e TAB
+                target.setDisplayName(target.getName());
+                target.setPlayerListName(target.getName());
+                
                 getConfig().set("titulos-salvos." + target.getUniqueId(), null);
                 saveConfig();
-                target.sendMessage("§cSeu título foi removido!");
                 sender.sendMessage("§aTítulo de " + target.getName() + " removido!");
             }
             return true;
         }
 
-        // COMANDO: /title <comum/op/god> <jogador> <texto> <cor>
         if (cmd.getName().equalsIgnoreCase("title")) {
             if (args.length < 4) {
                 sender.sendMessage("§eUse: /title <comum/op/god> <jogador> <texto> <cor>");
@@ -81,31 +82,34 @@ public class Main extends JavaPlugin implements CommandExecutor {
             try {
                 cor = ChatColor.valueOf(corNome);
             } catch (Exception e) {
-                sender.sendMessage("§cCor inválida! Use RED, GOLD, AQUA, etc.");
+                sender.sendMessage("§cCor inválida!");
                 return true;
             }
 
             String prefixo = "";
             if (tipo.equals("god")) {
-                prefixo = "§b§lGOD: ";
+                prefixo = "§b§lGOD ";
                 applyAttributes(target, 40.0, 2.5);
             } else if (tipo.equals("op")) {
-                prefixo = "§6§lOP: ";
+                prefixo = "§6§lOP ";
                 applyAttributes(target, 38.0, 1.5);
             }
 
-            // O Título final que será salvo e exibido
-            String tituloPrincipal = prefixo + cor + "§l" + texto;
-            String subtituloNick = "§f" + target.getName(); // Nick em branco embaixo
+            // Monta o Título: Ex: [GOD REI]
+            String tituloFormatado = "§7[" + prefixo + cor + "§l" + texto + "§7] ";
+            
+            // Aplica no CHAT e no TAB (Fica em negrito e com cor)
+            target.setDisplayName(tituloFormatado + "§f§l" + target.getName());
+            target.setPlayerListName(tituloFormatado + "§f§l" + target.getName());
 
-            listaDeTitulos.put(target.getUniqueId(), tituloPrincipal);
-            getConfig().set("titulos-salvos." + target.getUniqueId(), tituloPrincipal);
+            listaDeTitulos.put(target.getUniqueId(), tituloFormatado);
+            getConfig().set("titulos-salvos." + target.getUniqueId(), tituloFormatado);
             saveConfig();
 
-            // EXIBIÇÃO NA TELA: Título em cima, Nick embaixo
-            target.sendTitle(tituloPrincipal, subtituloNick, 10, 70, 20);
+            // Ainda manda o efeito na tela para avisar
+            target.sendTitle(cor + "§l" + texto, "§fTítulo Ativado!", 10, 40, 10);
             
-            sender.sendMessage("§aTítulo enviado para " + target.getName());
+            sender.sendMessage("§aTítulo aplicado ao nome de " + target.getName());
             return true;
         }
         return true;
@@ -125,7 +129,16 @@ public class Main extends JavaPlugin implements CommandExecutor {
     private void loadData() {
         if (getConfig().getConfigurationSection("titulos-salvos") == null) return;
         for (String key : getConfig().getConfigurationSection("titulos-salvos").getKeys(false)) {
-            listaDeTitulos.put(UUID.fromString(key), getConfig().getString("titulos-salvos." + key));
+            UUID uuid = UUID.fromString(key);
+            String tag = getConfig().getString("titulos-salvos." + key);
+            listaDeTitulos.put(uuid, tag);
+            
+            // Tenta aplicar ao jogador se ele já estiver online
+            Player p = Bukkit.getPlayer(uuid);
+            if (p != null) {
+                p.setDisplayName(tag + "§f§l" + p.getName());
+                p.setPlayerListName(tag + "§f§l" + p.getName());
+            }
         }
     }
 }

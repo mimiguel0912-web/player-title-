@@ -1,10 +1,12 @@
 name: PlayTitle
-version: 1.1
+version: 2.0
 main: me.miguel.playtitle.Main
 api-version: 1.21
 authors: [Miguel]
 commands:
   title:
-    description: Envia e salva um título.
+    description: Dá um título (comum/op/god) com atributos.
   titulos:
-    description: Lista os títulos salvos de todos os jogadores.
+    description: Lista todos os títulos ativos.
+  untitle:
+    description: Remove o título e bônus de um jogador.

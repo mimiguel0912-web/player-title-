@@ -1,14 +1,10 @@
 name: PlayTitle
-version: 1.0
+version: 1.1
 main: me.miguel.playtitle.Main
 api-version: 1.21
 authors: [Miguel]
-
 commands:
   title:
-    description: Define titulo com buffs.
-  untitle:
-    description: Remove titulo e buffs.
+    description: Envia e salva um título.
   titulos:
-    description: Lista de titulos.
-    
+    description: Lista os títulos salvos de todos os jogadores.

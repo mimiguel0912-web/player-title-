@@ -2,6 +2,7 @@ package me.miguel.playtitle;
 
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
+import org.bukkit.attribute.Attribute;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -18,85 +19,108 @@ public class Main extends JavaPlugin implements CommandExecutor {
     @Override
     public void onEnable() {
         saveDefaultConfig();
-        loadData(); // Carrega os títulos salvos ao ligar o servidor
-        
+        loadData();
         getCommand("title").setExecutor(this);
         getCommand("titulos").setExecutor(this);
+        getCommand("untitle").setExecutor(this);
     }
 
     @Override
     public boolean onCommand(CommandSender sender, Command cmd, String label, String[] args) {
-        
+
         // COMANDO: /titulos
         if (cmd.getName().equalsIgnoreCase("titulos")) {
             if (listaDeTitulos.isEmpty()) {
-                sender.sendMessage("§c[!] Nenhum título foi enviado ainda.");
+                sender.sendMessage("§c[!] Nenhum título ativo no momento.");
                 return true;
             }
-            sender.sendMessage("§6§l=== TÍTULOS ATIVOS ===");
+            sender.sendMessage("§b§l--- TiTULOS DiSPONiVEiS ---");
             for (Map.Entry<UUID, String> entry : listaDeTitulos.entrySet()) {
                 String nome = Bukkit.getOfflinePlayer(entry.getKey()).getName();
-                if (nome == null) nome = "Jogador Desconhecido";
-                // Mostra o nome e o título (que já inclui a cor e o negrito)
-                sender.sendMessage("§e" + nome + " §7- " + ChatColor.translateAlternateColorCodes('&', entry.getValue()));
+                sender.sendMessage("§f• " + nome + ": " + ChatColor.translateAlternateColorCodes('&', entry.getValue()));
             }
             return true;
         }
 
-        // COMANDO: /title <jogador> <texto> <cor>
+        // COMANDO: /untitle <jogador>
+        if (cmd.getName().equalsIgnoreCase("untitle")) {
+            if (args.length < 1) {
+                sender.sendMessage("§eUse: /untitle <jogador>");
+                return true;
+            }
+            Player target = Bukkit.getPlayer(args[0]);
+            if (target != null) {
+                listaDeTitulos.remove(target.getUniqueId());
+                removeAttributes(target);
+                getConfig().set("titulos-salvos." + target.getUniqueId(), null);
+                saveConfig();
+                target.sendMessage("§cSeu título foi removido!");
+                sender.sendMessage("§aTítulo de " + target.getName() + " removido!");
+            }
+            return true;
+        }
+
+        // COMANDO: /title <op/god/comum> <jogador> <texto> <cor>
         if (cmd.getName().equalsIgnoreCase("title")) {
-            if (args.length < 3) {
-                sender.sendMessage("§eUse: /title <jogador> <texto> <cor>");
+            if (args.length < 4) {
+                sender.sendMessage("§eUse: /title <comum/op/god> <jogador> <texto> <cor>");
                 return true;
             }
 
-            Player target = Bukkit.getPlayer(args[0]);
+            String tipo = args[0].toLowerCase();
+            Player target = Bukkit.getPlayer(args[1]);
+            String texto = args[2];
+            String corNome = args[3].toUpperCase();
+
             if (target == null) {
                 sender.sendMessage("§cJogador offline!");
                 return true;
             }
 
-            String texto = args[1];
-            String corNome = args[2].toUpperCase();
             ChatColor cor;
-
             try {
                 cor = ChatColor.valueOf(corNome);
-            } catch (IllegalArgumentException e) {
-                sender.sendMessage("§cCor inválida! Use: RED, GREEN, BLUE, GOLD, etc.");
+            } catch (Exception e) {
+                sender.sendMessage("§cCor inválida! Use RED, GOLD, AQUA, etc.");
                 return true;
             }
 
-            // O segredo: Cor + Negrito + Texto
-            String tituloFinal = cor + "§l" + texto;
+            String tag = "";
+            if (tipo.equals("god")) {
+                tag = "§b§lGOD: ";
+                applyAttributes(target, 40.0, 2.5); // +2x Vida | +1.5x Dano
+            } else if (tipo.equals("op")) {
+                tag = "§6§lOP: ";
+                applyAttributes(target, 38.0, 1.5); // +0.9x Vida | +0.5x Dano
+            }
 
-            // Salva na lista e no arquivo
+            String tituloFinal = tag + cor + "§l" + texto;
             listaDeTitulos.put(target.getUniqueId(), tituloFinal);
-            saveData(target.getUniqueId(), tituloFinal);
+            getConfig().set("titulos-salvos." + target.getUniqueId(), tituloFinal);
+            saveConfig();
 
-            target.sendTitle(tituloFinal, "", 10, 70, 20);
-            sender.sendMessage("§aTítulo enviado para " + target.getName() + " e salvo permanentemente!");
+            target.sendTitle(tituloFinal, "§fTítulo Ativado!", 10, 70, 20);
+            sender.sendMessage("§aTítulo " + tipo.toUpperCase() + " enviado para " + target.getName());
             return true;
         }
-
         return true;
     }
 
-    // Salva um novo título no config.yml
-    private void saveData(UUID uuid, String titulo) {
-        getConfig().set("titulos-salvos." + uuid.toString(), titulo);
-        saveConfig();
+    private void applyAttributes(Player p, double health, double damage) {
+        p.getAttribute(Attribute.GENERIC_MAX_HEALTH).setBaseValue(health);
+        p.setHealth(health);
+        p.getAttribute(Attribute.GENERIC_ATTACK_DAMAGE).setBaseValue(damage + 1.0);
     }
 
-    // Carrega todos os títulos do config.yml para a memória
+    private void removeAttributes(Player p) {
+        p.getAttribute(Attribute.GENERIC_MAX_HEALTH).setBaseValue(20.0);
+        p.getAttribute(Attribute.GENERIC_ATTACK_DAMAGE).setBaseValue(1.0); // Dano padrão da mão
+    }
+
     private void loadData() {
         if (getConfig().getConfigurationSection("titulos-salvos") == null) return;
-        
         for (String key : getConfig().getConfigurationSection("titulos-salvos").getKeys(false)) {
-            UUID uuid = UUID.fromString(key);
-            String titulo = getConfig().getString("titulos-salvos." + key);
-            listaDeTitulos.put(uuid, titulo);
+            listaDeTitulos.put(UUID.fromString(key), getConfig().getString("titulos-salvos." + key));
         }
     }
 }
- 

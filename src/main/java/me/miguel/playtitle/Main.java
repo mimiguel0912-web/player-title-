@@ -1,5 +1,7 @@
 package me.miguel.playtitle;
 
+import me.neznamy.tab.api.TabAPI;
+import me.neznamy.tab.api.TabPlayer;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.attribute.Attribute;
@@ -8,6 +10,7 @@ import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -21,25 +24,12 @@ public class Main extends JavaPlugin implements CommandExecutor {
         saveDefaultConfig();
         loadData();
         getCommand("title").setExecutor(this);
-        getCommand("titulos").setExecutor(this);
         getCommand("untitle").setExecutor(this);
+        getLogger().info("PlayTitle carregado com suporte ao TAB!");
     }
 
     @Override
     public boolean onCommand(CommandSender sender, Command cmd, String label, String[] args) {
-
-        if (cmd.getName().equalsIgnoreCase("titulos")) {
-            if (listaDeTitulos.isEmpty()) {
-                sender.sendMessage("§c[!] Nenhum título ativo.");
-                return true;
-            }
-            sender.sendMessage("§b§l--- TÍTULOS ATIVOS ---");
-            for (Map.Entry<UUID, String> entry : listaDeTitulos.entrySet()) {
-                String nome = Bukkit.getOfflinePlayer(entry.getKey()).getName();
-                sender.sendMessage("§e" + nome + " §7- " + ChatColor.translateAlternateColorCodes('&', entry.getValue()));
-            }
-            return true;
-        }
 
         if (cmd.getName().equalsIgnoreCase("untitle")) {
             if (args.length < 1) {
@@ -48,15 +38,7 @@ public class Main extends JavaPlugin implements CommandExecutor {
             }
             Player target = Bukkit.getPlayer(args[0]);
             if (target != null) {
-                listaDeTitulos.remove(target.getUniqueId());
-                removeAttributes(target);
-                
-                // Reseta o nome no Chat e TAB
-                target.setDisplayName(target.getName());
-                target.setPlayerListName(target.getName());
-                
-                getConfig().set("titulos-salvos." + target.getUniqueId(), null);
-                saveConfig();
+                removePlayerTitle(target);
                 sender.sendMessage("§aTítulo de " + target.getName() + " removido!");
             }
             return true;
@@ -82,7 +64,7 @@ public class Main extends JavaPlugin implements CommandExecutor {
             try {
                 cor = ChatColor.valueOf(corNome);
             } catch (Exception e) {
-                sender.sendMessage("§cCor inválida!");
+                sender.sendMessage("§cCor inválida! Use GOLD, RED, AQUA, etc.");
                 return true;
             }
 
@@ -95,24 +77,51 @@ public class Main extends JavaPlugin implements CommandExecutor {
                 applyAttributes(target, 38.0, 1.5);
             }
 
-            // Monta o Título: Ex: [GOD REI]
             String tituloFormatado = "§7[" + prefixo + cor + "§l" + texto + "§7] ";
             
-            // Aplica no CHAT e no TAB (Fica em negrito e com cor)
+            // 1. Aplica no Chat e no TAB do Minecraft
             target.setDisplayName(tituloFormatado + "§f§l" + target.getName());
             target.setPlayerListName(tituloFormatado + "§f§l" + target.getName());
+
+            // 2. COMANDO MÁGICO: Envia para a API do TAB mudar a cabeça
+            updateTabPrefix(target, tituloFormatado);
 
             listaDeTitulos.put(target.getUniqueId(), tituloFormatado);
             getConfig().set("titulos-salvos." + target.getUniqueId(), tituloFormatado);
             saveConfig();
 
-            // Ainda manda o efeito na tela para avisar
             target.sendTitle(cor + "§l" + texto, "§fTítulo Ativado!", 10, 40, 10);
-            
-            sender.sendMessage("§aTítulo aplicado ao nome de " + target.getName());
+            sender.sendMessage("§aTítulo aplicado e sincronizado com o TAB!");
             return true;
         }
         return true;
+    }
+
+    private void updateTabPrefix(Player player, String prefix) {
+        if (Bukkit.getPluginManager().isPluginEnabled("TAB")) {
+            TabPlayer tabPlayer = TabAPI.getInstance().getPlayer(player.getUniqueId());
+            if (tabPlayer != null) {
+                // Define o prefixo diretamente na cabeça e no TAB através do plugin TAB
+                TabAPI.getInstance().getGroupManager().setPrefix(tabPlayer, prefix);
+            }
+        }
+    }
+
+    private void removePlayerTitle(Player p) {
+        listaDeTitulos.remove(p.getUniqueId());
+        removeAttributes(p);
+        p.setDisplayName(p.getName());
+        p.setPlayerListName(p.getName());
+        
+        if (Bukkit.getPluginManager().isPluginEnabled("TAB")) {
+            TabPlayer tabPlayer = TabAPI.getInstance().getPlayer(p.getUniqueId());
+            if (tabPlayer != null) {
+                TabAPI.getInstance().getGroupManager().setPrefix(tabPlayer, "");
+            }
+        }
+        
+        getConfig().set("titulos-salvos." + p.getUniqueId(), null);
+        saveConfig();
     }
 
     private void applyAttributes(Player p, double health, double damage) {
@@ -132,13 +141,6 @@ public class Main extends JavaPlugin implements CommandExecutor {
             UUID uuid = UUID.fromString(key);
             String tag = getConfig().getString("titulos-salvos." + key);
             listaDeTitulos.put(uuid, tag);
-            
-            // Tenta aplicar ao jogador se ele já estiver online
-            Player p = Bukkit.getPlayer(uuid);
-            if (p != null) {
-                p.setDisplayName(tag + "§f§l" + p.getName());
-                p.setPlayerListName(tag + "§f§l" + p.getName());
-            }
         }
     }
 }

@@ -26,12 +26,16 @@ public class Main extends JavaPlugin implements CommandExecutor, Listener {
     public void onEnable() {
         saveDefaultConfig();
         loadData();
+        // Registra o evento para restaurar o título quando o jogador entrar
         getServer().getPluginManager().registerEvents(this, this);
+        
         getCommand("title").setExecutor(this);
         getCommand("untitle").setExecutor(this);
+        
         getLogger().info("PlayTitle ON - Integrado com TAB e Salvamento!");
     }
 
+    // --- RESTAURA O TÍTULO QUANDO O JOGADOR ENTRA ---
     @EventHandler
     public void onJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
@@ -40,11 +44,11 @@ public class Main extends JavaPlugin implements CommandExecutor, Listener {
         if (listaDeTitulos.containsKey(uuid)) {
             String titulo = listaDeTitulos.get(uuid);
             
-            // Aplica no Chat e Lista do TAB
+            // Aplica no Chat e no TAB do Minecraft
             player.setDisplayName(titulo + "§f§l" + player.getName());
             player.setPlayerListName(titulo + "§f§l" + player.getName());
 
-            // Espera o TAB carregar o player para aplicar na cabeça
+            // Espera o TAB carregar o player (2 segundos) para aplicar na cabeça
             Bukkit.getScheduler().runTaskLater(this, () -> {
                 updateTabPrefix(player, titulo);
             }, 40L); 
@@ -53,6 +57,7 @@ public class Main extends JavaPlugin implements CommandExecutor, Listener {
 
     @Override
     public boolean onCommand(CommandSender sender, Command cmd, String label, String[] args) {
+        
         if (cmd.getName().equalsIgnoreCase("untitle")) {
             if (args.length < 1) {
                 sender.sendMessage("§eUse: /untitle <jogador>");
@@ -86,7 +91,7 @@ public class Main extends JavaPlugin implements CommandExecutor, Listener {
             try {
                 cor = ChatColor.valueOf(corNome);
             } catch (Exception e) {
-                sender.sendMessage("§cCor inválida! Use nomes em inglês.");
+                sender.sendMessage("§cCor inválida! Use nomes em inglês (GOLD, RED, AQUA, etc).");
                 return true;
             }
 
@@ -101,17 +106,20 @@ public class Main extends JavaPlugin implements CommandExecutor, Listener {
 
             String tituloFormatado = "§7[" + prefixo + cor + "§l" + texto + "§7] ";
             
+            // Aplica localmente
             target.setDisplayName(tituloFormatado + "§f§l" + target.getName());
             target.setPlayerListName(tituloFormatado + "§f§l" + target.getName());
             
+            // Envia para a API do TAB configurar a cabeça
             updateTabPrefix(target, tituloFormatado);
 
+            // Salva na lista e no arquivo config.yml
             listaDeTitulos.put(target.getUniqueId(), tituloFormatado);
             getConfig().set("titulos-salvos." + target.getUniqueId(), tituloFormatado);
             saveConfig();
 
             target.sendTitle(cor + "§l" + texto, "§fTítulo Ativado!", 10, 40, 10);
-            sender.sendMessage("§aTítulo salvo e aplicado!");
+            sender.sendMessage("§aTítulo aplicado e salvo com sucesso!");
             return true;
         }
         return true;
@@ -126,7 +134,7 @@ public class Main extends JavaPlugin implements CommandExecutor, Listener {
                 }
             }
         } catch (Exception e) {
-            getLogger().warning("Erro ao atualizar prefixo no TAB: " + e.getMessage());
+            getLogger().warning("Erro ao sincronizar com o TAB: " + e.getMessage());
         }
     }
 
@@ -161,7 +169,7 @@ public class Main extends JavaPlugin implements CommandExecutor, Listener {
                 String tag = getConfig().getString("titulos-salvos." + key);
                 listaDeTitulos.put(uuid, tag);
             } catch (Exception e) {
-                // Pula se o UUID for inválido
+                // UUID inválido, ignora
             }
         }
     }

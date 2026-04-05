@@ -26,38 +26,26 @@ public class Main extends JavaPlugin implements CommandExecutor, Listener {
     public void onEnable() {
         saveDefaultConfig();
         loadData();
-        // Registra o evento para restaurar o título quando o jogador entrar
         getServer().getPluginManager().registerEvents(this, this);
-        
         getCommand("title").setExecutor(this);
         getCommand("untitle").setExecutor(this);
-        
-        getLogger().info("PlayTitle ON - Integrado com TAB e Salvamento!");
+        getLogger().info("PlayTitle ON - Corrigido para API Nova do TAB!");
     }
 
-    // --- RESTAURA O TÍTULO QUANDO O JOGADOR ENTRA ---
     @EventHandler
     public void onJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
         UUID uuid = player.getUniqueId();
-
         if (listaDeTitulos.containsKey(uuid)) {
             String titulo = listaDeTitulos.get(uuid);
-            
-            // Aplica no Chat e no TAB do Minecraft
             player.setDisplayName(titulo + "§f§l" + player.getName());
             player.setPlayerListName(titulo + "§f§l" + player.getName());
-
-            // Espera o TAB carregar o player (2 segundos) para aplicar na cabeça
-            Bukkit.getScheduler().runTaskLater(this, () -> {
-                updateTabPrefix(player, titulo);
-            }, 40L); 
+            Bukkit.getScheduler().runTaskLater(this, () -> updateTabPrefix(player, titulo), 40L); 
         }
     }
 
     @Override
     public boolean onCommand(CommandSender sender, Command cmd, String label, String[] args) {
-        
         if (cmd.getName().equalsIgnoreCase("untitle")) {
             if (args.length < 1) {
                 sender.sendMessage("§eUse: /untitle <jogador>");
@@ -76,7 +64,6 @@ public class Main extends JavaPlugin implements CommandExecutor, Listener {
                 sender.sendMessage("§eUse: /title <comum/op/god> <jogador> <texto> <cor>");
                 return true;
             }
-
             String tipo = args[0].toLowerCase();
             Player target = Bukkit.getPlayer(args[1]);
             String texto = args[2];
@@ -88,10 +75,8 @@ public class Main extends JavaPlugin implements CommandExecutor, Listener {
             }
 
             ChatColor cor;
-            try {
-                cor = ChatColor.valueOf(corNome);
-            } catch (Exception e) {
-                sender.sendMessage("§cCor inválida! Use nomes em inglês (GOLD, RED, AQUA, etc).");
+            try { cor = ChatColor.valueOf(corNome); } catch (Exception e) {
+                sender.sendMessage("§cCor inválida!");
                 return true;
             }
 
@@ -105,21 +90,16 @@ public class Main extends JavaPlugin implements CommandExecutor, Listener {
             }
 
             String tituloFormatado = "§7[" + prefixo + cor + "§l" + texto + "§7] ";
-            
-            // Aplica localmente
             target.setDisplayName(tituloFormatado + "§f§l" + target.getName());
             target.setPlayerListName(tituloFormatado + "§f§l" + target.getName());
-            
-            // Envia para a API do TAB configurar a cabeça
             updateTabPrefix(target, tituloFormatado);
 
-            // Salva na lista e no arquivo config.yml
             listaDeTitulos.put(target.getUniqueId(), tituloFormatado);
             getConfig().set("titulos-salvos." + target.getUniqueId(), tituloFormatado);
             saveConfig();
 
             target.sendTitle(cor + "§l" + texto, "§fTítulo Ativado!", 10, 40, 10);
-            sender.sendMessage("§aTítulo aplicado e salvo com sucesso!");
+            sender.sendMessage("§aTítulo aplicado e salvo!");
             return true;
         }
         return true;
@@ -130,11 +110,14 @@ public class Main extends JavaPlugin implements CommandExecutor, Listener {
             if (Bukkit.getPluginManager().isPluginEnabled("TAB")) {
                 TabPlayer tabPlayer = TabAPI.getInstance().getPlayer(player.getUniqueId());
                 if (tabPlayer != null) {
-                    TabAPI.getInstance().getGroupManager().setPrefix(tabPlayer, prefix);
+                    // MUDANÇA AQUI: de getGroupManager para getNameTagManager
+                    if (TabAPI.getInstance().getNameTagManager() != null) {
+                        TabAPI.getInstance().getNameTagManager().setPrefix(tabPlayer, prefix);
+                    }
                 }
             }
         } catch (Exception e) {
-            getLogger().warning("Erro ao sincronizar com o TAB: " + e.getMessage());
+            getLogger().warning("Erro no TAB: " + e.getMessage());
         }
     }
 
@@ -143,9 +126,7 @@ public class Main extends JavaPlugin implements CommandExecutor, Listener {
         removeAttributes(p);
         p.setDisplayName(p.getName());
         p.setPlayerListName(p.getName());
-        
         updateTabPrefix(p, "");
-        
         getConfig().set("titulos-salvos." + p.getUniqueId(), null);
         saveConfig();
     }
@@ -164,13 +145,7 @@ public class Main extends JavaPlugin implements CommandExecutor, Listener {
     private void loadData() {
         if (getConfig().getConfigurationSection("titulos-salvos") == null) return;
         for (String key : getConfig().getConfigurationSection("titulos-salvos").getKeys(false)) {
-            try {
-                UUID uuid = UUID.fromString(key);
-                String tag = getConfig().getString("titulos-salvos." + key);
-                listaDeTitulos.put(uuid, tag);
-            } catch (Exception e) {
-                // UUID inválido, ignora
-            }
+            listaDeTitulos.put(UUID.fromString(key), getConfig().getString("titulos-salvos." + key));
         }
     }
 }

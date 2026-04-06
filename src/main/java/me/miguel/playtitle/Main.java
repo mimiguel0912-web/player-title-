@@ -194,4 +194,22 @@ public class Main extends JavaPlugin implements Listener, CommandExecutor {
                             adm.sendMessage("§7- " + s);
                         }
                     }
-                    break
+                    break;
+                case 15:
+                    congelados.add(alvo.getUniqueId());
+                    adm.sendMessage("§fJogador congelado.");
+                    break;
+            }
+        }
+    }
+
+    @EventHandler
+    public void aoFalarChat(AsyncPlayerChatEvent e) {
+        if (zueiraAtiva) {
+            String msg = e.getMessage().toLowerCase();
+            if (msg.contains("lixo") || msg.contains("hack") || msg.contains("ez")) {
+                e.setMessage("§dEu amo esse servidor e todos os jogadores! ❤");
+            }
+        }
+    }
+}

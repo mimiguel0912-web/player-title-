@@ -30,115 +30,146 @@ public class Main extends JavaPlugin implements CommandExecutor, Listener {
         getServer().getPluginManager().registerEvents(this, this);
         getCommand("title").setExecutor(this);
         getCommand("untitle").setExecutor(this);
-        getLogger().info("PlayTitle - MODO FORCA BRUTA ATIVADO");
+        getCommand("titulos").setExecutor(this);
+        getLogger().info("PlayTitle V3 - Modo Persistencia Total Ativado!");
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
     public void onJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
-        UUID uuid = player.getUniqueId();
+        String titulo = listaDeTitulos.get(player.getUniqueId());
 
-        String titulo = listaDeTitulos.get(uuid);
         if (titulo == null) {
-            titulo = getConfig().getString("titulos-salvos." + uuid.toString());
+            titulo = getConfig().getString("titulos-salvos." + player.getUniqueId());
         }
 
         if (titulo != null) {
-            final String tituloFinal = titulo;
-            listaDeTitulos.put(uuid, tituloFinal); // Garante que esta na memoria
+            final String tag = titulo;
+            listaDeTitulos.put(player.getUniqueId(), tag);
 
-            // 1. Chat e Lista (Bukkit)
-            player.setDisplayName(tituloFinal + "§f§l" + player.getName());
-            player.setPlayerListName(tituloFinal + "§f§l" + player.getName());
+            // Aplica no Chat/Lista do Bukkit
+            player.setDisplayName(tag + "§f" + player.getName());
+            player.setPlayerListName(tag + "§f" + player.getName());
 
-            // 2. Ciclo de Força no TAB (Tenta 3 vezes para garantir)
-            for (int delay : new int[]{20, 100, 200}) { // 1s, 5s e 10s
+            // Força o TAB a reconhecer o título com repetição (Delay para evitar bugs)
+            for (int delay : new int[]{40, 100, 200}) { // 2s, 5s e 10s
                 Bukkit.getScheduler().runTaskLater(this, () -> {
                     if (player.isOnline()) {
-                        forceTabPrefix(player, tituloFinal);
+                        setTabPrefix(player, tag);
                     }
-                }, (long) delay);
+                }, delay);
             }
         }
     }
 
     @Override
     public boolean onCommand(CommandSender sender, Command cmd, String label, String[] args) {
-        if (cmd.getName().equalsIgnoreCase("untitle")) {
-            if (args.length < 1) return false;
-            Player target = Bukkit.getPlayer(args[0]);
-            if (target != null) {
-                removePlayerTitle(target);
-                sender.sendMessage("§aTítulo removido com sucesso!");
+        
+        // COMANDO /TITULOS (LISTAR)
+        if (cmd.getName().equalsIgnoreCase("titulos")) {
+            sender.sendMessage("§b§l=== JOGADORES COM TITULO ===");
+            if (listaDeTitulos.isEmpty()) {
+                sender.sendMessage("§7Nenhum titulo ativo no momento.");
+            } else {
+                for (UUID id : listaDeTitulos.keySet()) {
+                    String nome = Bukkit.getOfflinePlayer(id).getName();
+                    sender.sendMessage("§e" + nome + ": " + listaDeTitulos.get(id));
+                }
             }
             return true;
         }
 
+        // COMANDO /UNTITLE (REMOVER)
+        if (cmd.getName().equalsIgnoreCase("untitle")) {
+            if (args.length < 1) {
+                sender.sendMessage("§eUse: /untitle <jogador>");
+                return true;
+            }
+            Player target = Bukkit.getPlayer(args[0]);
+            if (target != null) {
+                removeTitle(target);
+                sender.sendMessage("§aTitulo removido de " + target.getName());
+            }
+            return true;
+        }
+
+        // COMANDO /TITLE (APLICAR)
         if (cmd.getName().equalsIgnoreCase("title")) {
-            if (args.length < 4) return false;
+            if (args.length < 4) {
+                sender.sendMessage("§eUse: /title <comum/op/god> <jogador> <texto> <cor>");
+                return true;
+            }
 
             String tipo = args[0].toLowerCase();
             Player target = Bukkit.getPlayer(args[1]);
             String texto = args[2];
             String corNome = args[3].toUpperCase();
 
-            if (target == null) return true;
+            if (target == null) {
+                sender.sendMessage("§cJogador offline!");
+                return true;
+            }
 
             ChatColor cor;
-            try { cor = ChatColor.valueOf(corNome); } catch (Exception e) { return true; }
+            try { cor = ChatColor.valueOf(corNome); } catch (Exception e) {
+                sender.sendMessage("§cCor invalida!");
+                return true;
+            }
 
             String prefixo = "";
             if (tipo.equals("god")) {
                 prefixo = "§b§lGOD ";
-                applyAttributes(target, 40.0, 2.5);
+                target.getAttribute(Attribute.GENERIC_MAX_HEALTH).setBaseValue(40.0);
+                target.setHealth(40.0);
             } else if (tipo.equals("op")) {
                 prefixo = "§6§lOP ";
-                applyAttributes(target, 38.0, 1.5);
+                target.getAttribute(Attribute.GENERIC_MAX_HEALTH).setBaseValue(30.0);
             }
 
-            String tituloFormatado = "§7[" + prefixo + cor + "§l" + texto + "§7] ";
+            String formatado = "§7[" + prefixo + cor + "§l" + texto + "§7] ";
             
-            target.setDisplayName(tituloFormatado + "§f§l" + target.getName());
-            target.setPlayerListName(tituloFormatado + "§f§l" + target.getName());
-            
-            forceTabPrefix(target, tituloFormatado);
-
-            listaDeTitulos.put(target.getUniqueId(), tituloFormatado);
-            getConfig().set("titulos-salvos." + target.getUniqueId().toString(), tituloFormatado);
+            // 1. Salva no nosso plugin
+            listaDeTitulos.put(target.getUniqueId(), formatado);
+            getConfig().set("titulos-salvos." + target.getUniqueId(), formatado);
             saveConfig();
 
-            target.sendTitle(cor + "§l" + texto, "§fTítulo Ativado!", 10, 40, 10);
+            // 2. Aplica no Bukkit
+            target.setDisplayName(formatado + "§f" + target.getName());
+            target.setPlayerListName(formatado + "§f" + target.getName());
+
+            // 3. O SEGREDO: Manda o comando interno do TAB salvar também!
+            setTabPrefix(target, formatado);
+            Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "tab player " + target.getName() + " prefix " + formatado);
+
+            target.sendTitle(cor + "§l" + texto, "§fTitulo Ativado!", 10, 40, 10);
+            sender.sendMessage("§aTitulo aplicado e salvo para sempre!");
             return true;
         }
         return true;
     }
 
-    private void forceTabPrefix(Player player, String prefix) {
+    private void setTabPrefix(Player player, String prefix) {
         try {
             if (Bukkit.getPluginManager().isPluginEnabled("TAB")) {
                 TabPlayer tabPlayer = TabAPI.getInstance().getPlayer(player.getUniqueId());
                 if (tabPlayer != null && TabAPI.getInstance().getNameTagManager() != null) {
-                    // Usamos setPrefix e tambem tentamos atualizar o valor visual
                     TabAPI.getInstance().getNameTagManager().setPrefix(tabPlayer, prefix);
                 }
             }
         } catch (Exception ignored) {}
     }
 
-    private void removePlayerTitle(Player p) {
+    private void removeTitle(Player p) {
         listaDeTitulos.remove(p.getUniqueId());
+        getConfig().set("titulos-salvos." + p.getUniqueId(), null);
+        saveConfig();
+        
         p.setDisplayName(p.getName());
         p.setPlayerListName(p.getName());
-        forceTabPrefix(p, "");
-        getConfig().set("titulos-salvos." + p.getUniqueId().toString(), null);
-        saveConfig();
         p.getAttribute(Attribute.GENERIC_MAX_HEALTH).setBaseValue(20.0);
-    }
-
-    private void applyAttributes(Player p, double health, double damage) {
-        p.getAttribute(Attribute.GENERIC_MAX_HEALTH).setBaseValue(health);
-        p.setHealth(health);
-        p.getAttribute(Attribute.GENERIC_ATTACK_DAMAGE).setBaseValue(damage + 1.0);
+        
+        setTabPrefix(p, "");
+        Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "tab player " + p.getName() + " remove");
     }
 
     private void loadData() {

@@ -1,138 +1,143 @@
 package com.humanangel;
 
-import org.bukkit.Bukkit;
-import org.bukkit.GameMode;
-import org.bukkit.Location;
-import org.bukkit.Material;
-import org.bukkit.World;
-import org.bukkit.command.Command;
-import org.bukkit.command.CommandExecutor;
-import org.bukkit.command.CommandSender;
+import org.bukkit.*;
+import org.bukkit.command.*;
+import org.bukkit.configuration.file.*;
 import org.bukkit.entity.Player;
-import org.bukkit.event.EventHandler;
-import org.bukkit.event.Listener;
+import org.bukkit.event.*;
 import org.bukkit.event.inventory.InventoryClickEvent;
-import org.bukkit.inventory.Inventory;
-import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.ItemMeta;
-import org.bukkit.inventory.meta.SkullMeta;
+import org.bukkit.event.player.AsyncPlayerChatEvent;
+import org.bukkit.inventory.*;
+import org.bukkit.inventory.meta.*;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.bukkit.potion.PotionEffect;
-import org.bukkit.potion.PotionEffectType;
-
-import java.util.ArrayList;
-import java.util.List;
+import org.bukkit.potion.*;
+import java.io.*;
+import java.util.*;
 
 public class Main extends JavaPlugin implements Listener, CommandExecutor {
+
+    private File dadosFile;
+    private FileConfiguration dados;
+    private boolean zueiraAtiva = false;
 
     @Override
     public void onEnable() {
         saveDefaultConfig();
+        carregarDados();
         getServer().getPluginManager().registerEvents(this, this);
-        getLogger().info("§d[HumanAngel] Plugin 2.0 Ativado - Recuperando funções.");
+        
+        // Loop de Avisos (30 em 30 min)
+        Bukkit.getScheduler().runTaskTimer(this, () -> {
+            List<String> lista = dados.getStringList("avisos");
+            if (!lista.isEmpty()) {
+                Bukkit.broadcastMessage("§6§l[AVISO] §f" + lista.get(new Random().nextInt(lista.size())).replace("&", "§"));
+            }
+        }, 0L, 36000L);
+    }
+
+    private void carregarDados() {
+        dadosFile = new File(getDataFolder(), "dados.yml");
+        if (!dadosFile.exists()) saveResource("dados.yml", false);
+        dados = YamlConfiguration.loadConfiguration(dadosFile);
     }
 
     @Override
     public boolean onCommand(CommandSender sender, Command cmd, String label, String[] args) {
         if (!(sender instanceof Player)) return true;
         Player p = (Player) sender;
-        String c = cmd.getName().toLowerCase();
+        String nomeCmd = cmd.getName().toLowerCase();
 
-        // Lista de Comandos Completa
-        if (c.equals("lista")) {
-            p.sendMessage("§b--- COMANDOS HUMANANGEL ---");
-            p.sendMessage("§fGeral: /home, /sethome, /tpa, /tpaccept, /spawn, /chapeu, /lixeira, /perfil, /morte, /compactar, /luz");
-            if (p.hasPermission("humanangel.admin")) {
-                p.sendMessage("§eAdmin: /modo, /control, /clearlag, /corrigir, /mudarip, /anuncio, /aviso, /congelar, /zueira, /avisos");
-            }
-            return true;
+        switch (nomeCmd) {
+            case "lista":
+                p.sendMessage("§d§lHUMAN ANGEL §7- §fComandos");
+                p.sendMessage("§f/home, /sethome, /spawn, /luz, /lixeira, /chapeu, /morte, /perfil");
+                if (p.hasPermission("humanangel.admin")) p.sendMessage("§c§lADM: §f/control, /zueira, /modo, /anuncio");
+                break;
+
+            case "sethome":
+                String hNome = (args.length > 0) ? args[0] : "home";
+                getConfig().set("homes." + p.getUniqueId() + "." + hNome, p.getLocation());
+                saveConfig();
+                p.sendMessage("§aHome §e" + hNome + " §asetada!");
+                break;
+
+            case "home":
+                String hIr = (args.length > 0) ? args[0] : "home";
+                Location loc = getConfig().getLocation("homes." + p.getUniqueId() + "." + hIr);
+                if (loc != null) p.teleport(loc); else p.sendMessage("§cHome inexistente.");
+                break;
+
+            case "control":
+                if (p.hasPermission("humanangel.admin")) abrirMenuPlayers(p);
+                break;
+
+            case "zueira":
+                if (p.hasPermission("humanangel.admin")) {
+                    zueiraAtiva = !zueiraAtiva;
+                    p.sendMessage(zueiraAtiva ? "§aZueira ON" : "§cZueira OFF");
+                }
+                break;
+
+            case "luz":
+                p.addPotionEffect(new PotionEffect(PotionEffectType.NIGHT_VISION, 999999, 1));
+                break;
+
+            case "spawn":
+                p.teleport(p.getWorld().getSpawnLocation());
+                break;
         }
-
-        // Sistema de Spawn
-        if (c.equals("spawn")) {
-            p.teleport(p.getWorld().getSpawnLocation());
-            p.sendMessage("§aTeleportado ao Spawn!");
-            return true;
-        }
-
-        // Homes Infinitas com Nomes
-        if (c.equals("sethome")) {
-            String nome = (args.length > 0) ? args[0].toLowerCase() : "home";
-            String path = "homes." + p.getUniqueId() + "." + nome;
-            getConfig().set(path + ".world", p.getLocation().getWorld().getName());
-            getConfig().set(path + ".x", p.getLocation().getX());
-            getConfig().set(path + ".y", p.getLocation().getY());
-            getConfig().set(path + ".z", p.getLocation().getZ());
-            saveConfig();
-            p.sendMessage("§aHome '" + nome + "' definida!");
-            return true;
-        }
-
-        if (c.equals("home")) {
-            String nome = (args.length > 0) ? args[0].toLowerCase() : "home";
-            String path = "homes." + p.getUniqueId() + "." + nome;
-            if (!getConfig().contains(path)) {
-                p.sendMessage("§cHome não encontrada!");
-                return true;
-            }
-            World w = Bukkit.getWorld(getConfig().getString(path + ".world"));
-            Location loc = new Location(w, getConfig().getDouble(path + ".x"), getConfig().getDouble(path + ".y"), getConfig().getDouble(path + ".z"));
-            p.teleport(loc);
-            p.sendMessage("§aTeleportado para: " + nome);
-            return true;
-        }
-
-        // Menu Control de Cabeças
-        if (c.equals("control") && p.hasPermission("humanangel.admin")) {
-            abrirMenuControl(p);
-            return true;
-        }
-
-        // Comandos de Utilidade
-        if (c.equals("luz")) {
-            p.addPotionEffect(new PotionEffect(PotionEffectType.NIGHT_VISION, 999999, 1));
-            p.sendMessage("§aVisão noturna ativada!");
-            return true;
-        }
-
-        if (c.equals("lixeira")) {
-            p.openInventory(Bukkit.createInventory(null, 36, "§8Lixeira"));
-            return true;
-        }
-
-        if (c.equals("modo") && p.hasPermission("humanangel.admin")) {
-            p.setGameMode(p.getGameMode() == GameMode.SURVIVAL ? GameMode.CREATIVE : GameMode.SURVIVAL);
-            return true;
-        }
-
-        if (c.equals("morte")) {
-            p.setHealth(0);
-            return true;
-        }
-
         return true;
     }
 
-    public void abrirMenuControl(Player p) {
+    public void abrirMenuPlayers(Player p) {
         Inventory inv = Bukkit.createInventory(null, 54, "§8Controle de Jogadores");
         for (Player online : Bukkit.getOnlinePlayers()) {
-            ItemStack head = new ItemStack(Material.PLAYER_HEAD);
-            SkullMeta meta = (SkullMeta) head.getItemMeta();
-            meta.setOwningPlayer(online);
-            meta.setDisplayName("§e" + online.getName());
-            head.setItemMeta(meta);
-            inv.addItem(head);
+            ItemStack item = new ItemStack(Material.PLAYER_HEAD);
+            SkullMeta m = (SkullMeta) item.getItemMeta();
+            m.setOwningPlayer(online);
+            m.setDisplayName("§e" + online.getName());
+            item.setItemMeta(m);
+            inv.addItem(item);
         }
         p.openInventory(inv);
     }
 
+    public void abrirMenuAcoes(Player adm, Player alvo) {
+        Inventory inv = Bukkit.createInventory(null, 27, "§8Ações: " + alvo.getName());
+        inv.setItem(10, criarItem(Material.COMPASS, "§aIr até ele"));
+        inv.setItem(12, criarItem(Material.PAPER, "§bPerfil e IP"));
+        inv.setItem(14, criarItem(Material.BARRIER, "§cBanir"));
+        inv.setItem(16, criarItem(Material.BEDROCK, "§6Listar Homes"));
+        adm.openInventory(inv);
+    }
+
+    private ItemStack criarItem(Material mat, String nome) {
+        ItemStack i = new ItemStack(mat);
+        ItemMeta m = i.getItemMeta(); m.setDisplayName(nome); i.setItemMeta(m);
+        return i;
+    }
+
     @EventHandler
-    public void aoClicar(InventoryClickEvent e) {
+    public void clicar(InventoryClickEvent e) {
         if (e.getView().getTitle().equals("§8Controle de Jogadores")) {
             e.setCancelled(true);
             if (e.getCurrentItem() == null) return;
             Player alvo = Bukkit.getPlayer(e.getCurrentItem().getItemMeta().getDisplayName().replace("§e", ""));
-            if (alvo != null) ((Player)e.getWhoClicked()).teleport(alvo);
+            if (alvo != null) abrirMenuAcoes((Player) e.getWhoClicked(), alvo);
+        } else if (e.getView().getTitle().contains("§8Ações:")) {
+            e.setCancelled(true);
+            Player adm = (Player) e.getWhoClicked();
+            Player alvo = Bukkit.getPlayer(e.getView().getTitle().split(": ")[1]);
+            if (alvo == null) return;
+            if (e.getRawSlot() == 10) adm.teleport(alvo);
+            if (e.getRawSlot() == 12) adm.sendMessage("§bIP: §f" + alvo.getAddress().getHostString());
+        }
+    }
+
+    @EventHandler
+    public void chat(AsyncPlayerChatEvent e) {
+        if (zueiraAtiva && (e.getMessage().contains("lixo") || e.getMessage().contains("hack"))) {
+            e.setMessage("§dEu amo esse servidor! ❤");
         }
     }
 }

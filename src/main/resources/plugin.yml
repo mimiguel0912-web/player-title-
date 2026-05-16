@@ -1,21 +1,26 @@
 name: PlayTitle
-version: 2.0
+version: 3.0
 main: me.miguel.title.Main
-api-version: 1.16
+api-version: 1.20
 
 commands:
+
   title:
-    description: Define títulos
+    description: Define um titulo
 
   cores:
-    description: Mostra todas as cores
+    description: Mostra cores
+
+  criargrupo:
+    description: Cria grupos
 
   settitleinicial:
-    description: Define título inicial
+    description: Define titulo inicial
 
   unsettitleinicial:
-    description: Remove título inicial
+    description: Remove titulo inicial
 
 permissions:
+
   title.admin:
     default: op

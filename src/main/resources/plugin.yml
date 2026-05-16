@@ -1,20 +1,21 @@
 name: PlayTitle
-version: 1.0
-main: me.miguel.playtitle.Main
-api-version: 1.20
-author: Miguel
-description: Plugin de titulos personalizados com suporte a TAB e persistencia.
-
-# Isso avisa o servidor que o PlayTitle precisa do TAB para funcionar 100%
-depend: [TAB]
+version: 2.0
+main: me.miguel.title.Main
+api-version: 1.16
 
 commands:
   title:
-    description: Aplica um titulo, cor e atributos a um jogador.
-    usage: /title <tipo> <jogador> <texto> <cor>
-  untitle:
-    description: Remove o titulo e os atributos de um jogador.
-    usage: /untitle <jogador>
-  titulos:
-    description: Mostra a lista de todos os jogadores que teem um titulo ativo.
-    usage: /titulos
+    description: Define títulos
+
+  cores:
+    description: Mostra todas as cores
+
+  settitleinicial:
+    description: Define título inicial
+
+  unsettitleinicial:
+    description: Remove título inicial
+
+permissions:
+  title.admin:
+    default: op

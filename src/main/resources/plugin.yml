@@ -20,6 +20,9 @@ commands:
   unsettitleinicial:
     description: Remove titulo inicial
 
+  untitle:
+  description: Remove titulo
+
 permissions:
 
   title.admin:

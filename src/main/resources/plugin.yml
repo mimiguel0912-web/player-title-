@@ -6,10 +6,10 @@ api-version: '1.21'
 commands:
 
   title:
-    description: Define um titulo
+    description: Define titulo
 
   untitle:
-    description: Remove um titulo
+    description: Remove titulo
 
   cores:
     description: Mostra cores

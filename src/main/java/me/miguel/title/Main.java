@@ -19,6 +19,9 @@ import org.bukkit.scoreboard.Scoreboard;
 import org.bukkit.scoreboard.ScoreboardManager;
 import org.bukkit.scoreboard.Team;
 
+import java.util.HashMap;
+import java.util.UUID;
+
 public class Main extends JavaPlugin implements Listener {
 
     private final HashMap<UUID, String> playerGroups = new HashMap<>();

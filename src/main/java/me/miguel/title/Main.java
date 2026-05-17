@@ -45,10 +45,18 @@ public class Main extends JavaPlugin implements Listener {
 
         createDefaultGroups();
 
+        loadPlayerData();
+
         getLogger().info("Plugin iniciado!");
     }
 
-    private void createDefaultGroups() {
+    @Override
+    public void onDisable() {
+
+        saveConfig();
+    }
+
+    public void createDefaultGroups() {
 
         if (!getConfig().contains("groups.comum")) {
 
@@ -74,6 +82,36 @@ public class Main extends JavaPlugin implements Listener {
         saveConfig();
     }
 
+    public void loadPlayerData() {
+
+        if (!getConfig().contains("players")) return;
+
+        for (String uuidString :
+                getConfig().getConfigurationSection("players").getKeys(false)) {
+
+            UUID uuid = UUID.fromString(uuidString);
+
+            String group =
+                    getConfig().getString("players." + uuidString + ".group");
+
+            String title =
+                    getConfig().getString("players." + uuidString + ".title");
+
+            String colorName =
+                    getConfig().getString("players." + uuidString + ".color");
+
+            ChatColor color = ChatColor.WHITE;
+
+            try {
+                color = ChatColor.valueOf(colorName);
+            } catch (Exception ignored) {}
+
+            playerGroups.put(uuid, group);
+            playerTitles.put(uuid, title);
+            playerColors.put(uuid, color);
+        }
+    }
+
     @EventHandler
     public void onJoin(PlayerJoinEvent event) {
 
@@ -84,10 +122,16 @@ public class Main extends JavaPlugin implements Listener {
         if (getConfig().contains("players." + uuid)) {
 
             String group = getConfig().getString("players." + uuid + ".group");
+
             String title = getConfig().getString("players." + uuid + ".title");
+
             String colorName = getConfig().getString("players." + uuid + ".color");
 
-            ChatColor color = ChatColor.valueOf(colorName);
+            ChatColor color = ChatColor.WHITE;
+
+            try {
+                color = ChatColor.valueOf(colorName);
+            } catch (Exception ignored) {}
 
             setPlayerData(player, group, title, color);
         }
@@ -106,15 +150,20 @@ public class Main extends JavaPlugin implements Listener {
 
         ChatColor color = playerColors.getOrDefault(uuid, ChatColor.GRAY);
 
+        String prefix = color + "§l[" + title + "] §r§f";
+
         event.setFormat(
-                color + "[" + title + "] §f" +
-                player.getName() +
-                "§7: §f" +
-                event.getMessage()
+                prefix +
+                        player.getName() +
+                        "§7: §f" +
+                        event.getMessage()
         );
     }
 
-    public void setPlayerData(Player player, String group, String title, ChatColor color) {
+    public void setPlayerData(Player player,
+                              String group,
+                              String title,
+                              ChatColor color) {
 
         UUID uuid = player.getUniqueId();
 
@@ -123,12 +172,14 @@ public class Main extends JavaPlugin implements Listener {
         playerColors.put(uuid, color);
 
         getConfig().set("players." + uuid + ".group", group);
+
         getConfig().set("players." + uuid + ".title", title);
+
         getConfig().set("players." + uuid + ".color", color.name());
 
         saveConfig();
 
-        String prefix = color + "[" + title + "] §f";
+        String prefix = color + "§l[" + title + "] §r§f";
 
         player.setDisplayName(prefix + player.getName());
 
@@ -137,12 +188,14 @@ public class Main extends JavaPlugin implements Listener {
         Team team = scoreboard.getTeam(group);
 
         if (team == null) {
+
             team = scoreboard.registerNewTeam(group);
         }
 
         team.setPrefix(prefix);
 
         if (!team.hasEntry(player.getName())) {
+
             team.addEntry(player.getName());
         }
 
@@ -157,7 +210,8 @@ public class Main extends JavaPlugin implements Listener {
 
         String group = playerGroups.getOrDefault(uuid, "comum");
 
-        ConfigurationSection section = getConfig().getConfigurationSection("groups." + group);
+        ConfigurationSection section =
+                getConfig().getConfigurationSection("groups." + group);
 
         if (section == null) return;
 
@@ -167,25 +221,33 @@ public class Main extends JavaPlugin implements Listener {
 
         if (player.getAttribute(Attribute.GENERIC_MAX_HEALTH) != null) {
 
-            player.getAttribute(Attribute.GENERIC_MAX_HEALTH).setBaseValue(health);
+            player.getAttribute(Attribute.GENERIC_MAX_HEALTH)
+                    .setBaseValue(health);
 
-            player.setHealth(Math.min(health, player.getHealth()));
+            player.setHealth(health);
         }
 
         player.removePotionEffect(PotionEffectType.INCREASE_DAMAGE);
 
         if (strength > 0) {
 
-            player.addPotionEffect(new PotionEffect(
-                    PotionEffectType.INCREASE_DAMAGE,
-                    Integer.MAX_VALUE,
-                    strength - 1
-            ));
+            player.addPotionEffect(
+                    new PotionEffect(
+                            PotionEffectType.INCREASE_DAMAGE,
+                            Integer.MAX_VALUE,
+                            strength,
+                            false,
+                            false
+                    )
+            );
         }
     }
 
     @Override
-    public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+    public boolean onCommand(CommandSender sender,
+                             Command command,
+                             String label,
+                             String[] args) {
 
         if (command.getName().equalsIgnoreCase("cores")) {
 

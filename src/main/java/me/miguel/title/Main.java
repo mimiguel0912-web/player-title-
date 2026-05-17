@@ -7,13 +7,15 @@ import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
+
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+
+import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
+
 import org.bukkit.plugin.java.JavaPlugin;
-import org.bukkit.potion.PotionEffect;
-import org.bukkit.potion.PotionEffectType;
 
 import org.bukkit.scoreboard.Scoreboard;
 import org.bukkit.scoreboard.ScoreboardManager;
@@ -68,14 +70,14 @@ public class Main extends JavaPlugin implements Listener {
         if (!getConfig().contains("groups.op")) {
 
             getConfig().set("groups.op.health", 30);
-            getConfig().set("groups.op.strength", 1);
+            getConfig().set("groups.op.strength", 2);
             getConfig().set("groups.op.color", "GREEN");
         }
 
         if (!getConfig().contains("groups.god")) {
 
             getConfig().set("groups.god.health", 40);
-            getConfig().set("groups.god.strength", 2);
+            getConfig().set("groups.god.strength", 4);
             getConfig().set("groups.god.color", "RED");
         }
 
@@ -121,11 +123,14 @@ public class Main extends JavaPlugin implements Listener {
 
         if (getConfig().contains("players." + uuid)) {
 
-            String group = getConfig().getString("players." + uuid + ".group");
+            String group =
+                    getConfig().getString("players." + uuid + ".group");
 
-            String title = getConfig().getString("players." + uuid + ".title");
+            String title =
+                    getConfig().getString("players." + uuid + ".title");
 
-            String colorName = getConfig().getString("players." + uuid + ".color");
+            String colorName =
+                    getConfig().getString("players." + uuid + ".color");
 
             ChatColor color = ChatColor.WHITE;
 
@@ -172,9 +177,7 @@ public class Main extends JavaPlugin implements Listener {
         playerColors.put(uuid, color);
 
         getConfig().set("players." + uuid + ".group", group);
-
         getConfig().set("players." + uuid + ".title", title);
-
         getConfig().set("players." + uuid + ".color", color.name());
 
         saveConfig();
@@ -188,14 +191,12 @@ public class Main extends JavaPlugin implements Listener {
         Team team = scoreboard.getTeam(group);
 
         if (team == null) {
-
             team = scoreboard.registerNewTeam(group);
         }
 
         team.setPrefix(prefix);
 
         if (!team.hasEntry(player.getName())) {
-
             team.addEntry(player.getName());
         }
 
@@ -217,30 +218,38 @@ public class Main extends JavaPlugin implements Listener {
 
         double health = section.getDouble("health");
 
-        int strength = section.getInt("strength");
-
         if (player.getAttribute(Attribute.GENERIC_MAX_HEALTH) != null) {
 
             player.getAttribute(Attribute.GENERIC_MAX_HEALTH)
                     .setBaseValue(health);
 
-            player.setHealth(health);
+            if (player.getHealth() > health) {
+                player.setHealth(health);
+            }
         }
+    }
 
-        player.removePotionEffect(PotionEffectType.INCREASE_DAMAGE);
+    @EventHandler
+    public void onDamage(EntityDamageByEntityEvent event) {
 
-        if (strength > 0) {
+        if (!(event.getDamager() instanceof Player)) return;
 
-            player.addPotionEffect(
-                    new PotionEffect(
-                            PotionEffectType.INCREASE_DAMAGE,
-                            Integer.MAX_VALUE,
-                            strength,
-                            false,
-                            false
-                    )
-            );
-        }
+        Player player = (Player) event.getDamager();
+
+        UUID uuid = player.getUniqueId();
+
+        String group = playerGroups.getOrDefault(uuid, "comum");
+
+        ConfigurationSection section =
+                getConfig().getConfigurationSection("groups." + group);
+
+        if (section == null) return;
+
+        int strength = section.getInt("strength");
+
+        double extraDamage = strength * 1.5;
+
+        event.setDamage(event.getDamage() + extraDamage);
     }
 
     @Override
@@ -268,7 +277,9 @@ public class Main extends JavaPlugin implements Listener {
 
             if (args.length < 4) {
 
-                sender.sendMessage("§cUso: /criargrupo <nome> <vida> <forca> <cor>");
+                sender.sendMessage(
+                        "§cUso: /criargrupo <nome> <vida> <forca> <cor>"
+                );
 
                 return true;
             }
@@ -298,7 +309,9 @@ public class Main extends JavaPlugin implements Listener {
 
             if (args.length < 4) {
 
-                sender.sendMessage("§cUso: /title <grupo> <player> <titulo> <cor>");
+                sender.sendMessage(
+                        "§cUso: /title <grupo> <player> <titulo> <cor>"
+                );
 
                 return true;
             }
@@ -326,14 +339,14 @@ public class Main extends JavaPlugin implements Listener {
 
             } catch (Exception e) {
 
-                sender.sendMessage("§cCor invalida!");
+                sender.sendMessage("§cCor inválida!");
 
                 return true;
             }
 
             setPlayerData(target, group, title, color);
 
-            sender.sendMessage("§aTitulo aplicado!");
+            sender.sendMessage("§aTítulo aplicado!");
 
             return true;
         }

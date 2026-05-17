@@ -351,6 +351,59 @@ public class Main extends JavaPlugin implements Listener {
             return true;
         }
 
+        if (command.getName().equalsIgnoreCase("untitle")) {
+
+            if (args.length < 1) {
+
+                sender.sendMessage("§cUso: /untitle <player>");
+
+                return true;
+            }
+
+            Player target = Bukkit.getPlayer(args[0]);
+
+            if (target == null) {
+
+                sender.sendMessage("§cJogador offline!");
+
+                return true;
+            }
+
+            UUID uuid = target.getUniqueId();
+
+            playerGroups.remove(uuid);
+            playerTitles.remove(uuid);
+            playerColors.remove(uuid);
+
+            getConfig().set("players." + uuid, null);
+
+            saveConfig();
+
+            Team team = scoreboard.getEntryTeam(target.getName());
+
+            if (team != null) {
+                team.removeEntry(target.getName());
+            }
+
+            target.setDisplayName(target.getName());
+
+            target.setPlayerListName(target.getName());
+
+            if (target.getAttribute(Attribute.GENERIC_MAX_HEALTH) != null) {
+
+                target.getAttribute(Attribute.GENERIC_MAX_HEALTH)
+                        .setBaseValue(20.0);
+            }
+
+            if (target.getHealth() > 20.0) {
+                target.setHealth(20.0);
+            }
+
+            sender.sendMessage("§aTítulo removido!");
+
+            return true;
+        }
+
         return false;
     }
 }

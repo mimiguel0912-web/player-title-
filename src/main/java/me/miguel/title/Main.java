@@ -49,7 +49,7 @@ public class Main extends JavaPlugin implements Listener {
 
         loadPlayerData();
 
-        getLogger().info("Plugin iniciado!");
+        getLogger().info("PlayTitle iniciado!");
     }
 
     @Override
@@ -133,6 +133,26 @@ public class Main extends JavaPlugin implements Listener {
                     getConfig().getString("players." + uuid + ".color");
 
             ChatColor color = ChatColor.WHITE;
+
+            try {
+                color = ChatColor.valueOf(colorName);
+            } catch (Exception ignored) {}
+
+            setPlayerData(player, group, title, color);
+        }
+
+        else if (getConfig().contains("initial")) {
+
+            String group =
+                    getConfig().getString("initial.group");
+
+            String title =
+                    getConfig().getString("initial.title");
+
+            String colorName =
+                    getConfig().getString("initial.color");
+
+            ChatColor color = ChatColor.GRAY;
 
             try {
                 color = ChatColor.valueOf(colorName);
@@ -400,6 +420,45 @@ public class Main extends JavaPlugin implements Listener {
             }
 
             sender.sendMessage("§aTítulo removido!");
+
+            return true;
+        }
+
+        if (command.getName().equalsIgnoreCase("settitleinicial")) {
+
+            if (args.length < 3) {
+
+                sender.sendMessage(
+                        "§cUso: /settitleinicial <grupo> <titulo> <cor>"
+                );
+
+                return true;
+            }
+
+            String group = args[0];
+
+            String title = args[1];
+
+            String color = args[2].toUpperCase();
+
+            getConfig().set("initial.group", group);
+            getConfig().set("initial.title", title);
+            getConfig().set("initial.color", color);
+
+            saveConfig();
+
+            sender.sendMessage("§aTítulo inicial definido!");
+
+            return true;
+        }
+
+        if (command.getName().equalsIgnoreCase("unsettitleinicial")) {
+
+            getConfig().set("initial", null);
+
+            saveConfig();
+
+            sender.sendMessage("§aTítulo inicial removido!");
 
             return true;
         }
